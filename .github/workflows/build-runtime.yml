@@ -95,7 +95,9 @@ jobs:
           fi
       - name: Generate checksum
         shell: bash
-        run: sha256sum *-gdal-*.tar.gz *-gdal-*.zip > "checksums-${{ matrix.runtime }}.txt"
+        run: |
+          sha256sum *-gdal-*.tar.gz *-gdal-*.zip > "checksums-${{ matrix.runtime }}.txt"
+          cp "runtime/${{ matrix.runtime }}/runtime-manifest.json" "runtime-manifest-${{ matrix.runtime }}.json"
       - name: Upload workflow artifacts
         uses: actions/upload-artifact@v4
         with:
@@ -104,6 +106,7 @@ jobs:
             *-gdal-*.tar.gz
             *-gdal-*.zip
             checksums-${{ matrix.runtime }}.txt
+            runtime-manifest-${{ matrix.runtime }}.json
           if-no-files-found: error
 
   publish:
@@ -127,3 +130,4 @@ jobs:
             release-assets/*-gdal-*.tar.gz
             release-assets/*-gdal-*.zip
             release-assets/checksums.txt
+            release-assets/runtime-manifest-*.json
