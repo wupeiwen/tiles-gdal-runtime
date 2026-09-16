@@ -1,0 +1,129 @@
+name: Build runtime
+
+on:
+  workflow_dispatch:
+  release:
+    types: [published]
+
+permissions:
+  contents: write
+
+env:
+  GDAL_VERSION: 3.13.3
+  PROJ_VERSION: 9.8.1
+  GDAL_SHA256: a3348c2102dd91962290007d7c293b467bb1b0cd89f086f24bb97b9b653a9804
+  PROJ_SHA256: af5b731c145c1d13c4e3b4eeb7d167e94e845e440f71e3496b4ed8dae0291960
+  BUILD_JOBS: 2
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runtime: win32-x64
+            os: windows-2025
+            shell: pwsh
+          - runtime: darwin-arm64
+            os: macos-26
+            shell: bash
+    name: ${{ matrix.runtime }}
+    runs-on: ${{ matrix.os }}
+    defaults:
+      run:
+        shell: ${{ matrix.shell }}
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+      - name: Install macOS tools
+        if: runner.os == 'macOS'
+        run: brew install cmake ninja
+      - name: Install Windows toolchain
+        if: runner.os == 'Windows'
+        uses: conda-incubator/setup-miniconda@v3
+        with:
+          miniforge-version: latest
+          activate-environment: runtime-build
+          channels: conda-forge
+          conda-remove-defaults: true
+      - name: Install Windows dependencies
+        if: runner.os == 'Windows'
+        run: conda install -y cmake ninja sqlite zlib zstd libpng libtiff
+      - name: Download sources
+        shell: bash
+        run: |
+          mkdir -p "$RUNNER_TEMP/sources"
+          curl --fail --location --retry 5 -o "$RUNNER_TEMP/sources/gdal.tar.xz" "https://github.com/OSGeo/gdal/releases/download/v${GDAL_VERSION}/gdal-${GDAL_VERSION}.tar.xz"
+          curl --fail --location --retry 5 -o "$RUNNER_TEMP/sources/proj.tar.gz" "https://github.com/OSGeo/PROJ/releases/download/${PROJ_VERSION}/proj-${PROJ_VERSION}.tar.gz"
+          node scripts/runtime/verify-sha256.js "$GDAL_SHA256" "$RUNNER_TEMP/sources/gdal.tar.xz"
+          node scripts/runtime/verify-sha256.js "$PROJ_SHA256" "$RUNNER_TEMP/sources/proj.tar.gz"
+          if command -v cygpath >/dev/null 2>&1; then
+            sources_dir=$(cygpath -u "$RUNNER_TEMP/sources")
+            gdal_archive=$(cygpath -u "$RUNNER_TEMP/sources/gdal.tar.xz")
+            proj_archive=$(cygpath -u "$RUNNER_TEMP/sources/proj.tar.gz")
+          else
+            sources_dir="$RUNNER_TEMP/sources"; gdal_archive="$sources_dir/gdal.tar.xz"; proj_archive="$sources_dir/proj.tar.gz"
+          fi
+          tar -xf "$gdal_archive" -C "$sources_dir"
+          tar -xf "$proj_archive" -C "$sources_dir"
+          echo "GDAL_SOURCE_DIR=$RUNNER_TEMP/sources/gdal-${GDAL_VERSION}" >> "$GITHUB_ENV"
+          echo "PROJ_SOURCE_DIR=$RUNNER_TEMP/sources/proj-${PROJ_VERSION}" >> "$GITHUB_ENV"
+          echo "RUNTIME_KEY=${{ matrix.runtime }}" >> "$GITHUB_ENV"
+      - name: Build Unix runtime
+        if: runner.os == 'macOS'
+        env:
+          MACOSX_DEPLOYMENT_TARGET: '12.0'
+        run: scripts/runtime/build-unix.sh
+      - name: Build Windows runtime
+        if: runner.os == 'Windows'
+        run: scripts/runtime/build-windows.ps1
+      - name: Verify runtime
+        run: node scripts/verify-gdal-runtime.js runtime/${{ matrix.runtime }}
+      - name: Verify macOS deployment
+        if: runner.os == 'macOS'
+        run: node scripts/runtime/verify-macos-deployment.js runtime/${{ matrix.runtime }} 12.0
+      - name: Package runtime
+        shell: bash
+        run: |
+          node scripts/runtime/package-runtime.js runtime/${{ matrix.runtime }}
+          if [[ "${{ matrix.runtime }}" == "win32-x64" ]]; then
+            powershell -Command "Compress-Archive -Path 'runtime\\win32-x64' -DestinationPath 'win32-x64-gdal-${GDAL_VERSION}-proj-${PROJ_VERSION}.zip'"
+          else
+            tar -C runtime -czf "darwin-arm64-gdal-${GDAL_VERSION}-proj-${PROJ_VERSION}.tar.gz" darwin-arm64
+          fi
+      - name: Generate checksum
+        shell: bash
+        run: sha256sum *-gdal-*.tar.gz *-gdal-*.zip > "checksums-${{ matrix.runtime }}.txt"
+      - name: Upload workflow artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: gdal-runtime-${{ matrix.runtime }}
+          path: |
+            *-gdal-*.tar.gz
+            *-gdal-*.zip
+            checksums-${{ matrix.runtime }}.txt
+          if-no-files-found: error
+
+  publish:
+    if: github.event_name == 'release'
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download packaged runtimes
+        uses: actions/download-artifact@v5
+        with:
+          pattern: gdal-runtime-*
+          path: release-assets
+          merge-multiple: true
+      - name: Merge checksums
+        shell: bash
+        run: cat release-assets/checksums-*.txt > release-assets/checksums.txt
+      - name: Upload release assets
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            release-assets/*-gdal-*.tar.gz
+            release-assets/*-gdal-*.zip
+            release-assets/checksums.txt
