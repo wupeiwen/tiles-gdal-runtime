@@ -53,6 +53,18 @@ if [[ "$(uname -s)" == Darwin ]]; then
       [[ -n "$candidate" ]] && cp -f "$candidate" "$runtime_dir/lib/$name"
     done < <(otool -L "$file" | tail -n +2 | awk '{print $1}')
   done < <(collect_files)
+  # Dependencies downloaded from Homebrew may advertise the runner's macOS
+  # version (for example 26.0), even though the runtime targets macOS 12.
+  # Rewrite the Mach-O build-version load command after relocation.
+  if [[ -n "${MACOSX_DEPLOYMENT_TARGET:-}" ]] && command -v vtool >/dev/null 2>&1; then
+    sdk_version=$(xcrun --sdk macosx --show-sdk-version)
+    while IFS= read -r file; do
+      command file "$file" | grep -q 'Mach-O' || continue
+      temp="$file.vtool"
+      vtool -set-build-version macos "$MACOSX_DEPLOYMENT_TARGET" "$sdk_version" -output "$temp" "$file"
+      mv -f "$temp" "$file"
+    done < <(collect_files)
+  fi
   while IFS= read -r file; do
     command file "$file" | grep -q 'Mach-O' || continue
     if otool -L "$file" | tail -n +2 | grep -E '/Users/|/opt/homebrew|/usr/local'; then
