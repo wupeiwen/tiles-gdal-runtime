@@ -57,8 +57,8 @@ jobs:
           mkdir -p "$RUNNER_TEMP/sources"
           curl --fail --location --retry 5 -o "$RUNNER_TEMP/sources/gdal.tar.xz" "https://github.com/OSGeo/gdal/releases/download/v${GDAL_VERSION}/gdal-${GDAL_VERSION}.tar.xz"
           curl --fail --location --retry 5 -o "$RUNNER_TEMP/sources/proj.tar.gz" "https://github.com/OSGeo/PROJ/releases/download/${PROJ_VERSION}/proj-${PROJ_VERSION}.tar.gz"
-          node scripts/runtime/verify-sha256.js "$GDAL_SHA256" "$RUNNER_TEMP/sources/gdal.tar.xz"
-          node scripts/runtime/verify-sha256.js "$PROJ_SHA256" "$RUNNER_TEMP/sources/proj.tar.gz"
+          node scripts/verify-sha256.js "$GDAL_SHA256" "$RUNNER_TEMP/sources/gdal.tar.xz"
+          node scripts/verify-sha256.js "$PROJ_SHA256" "$RUNNER_TEMP/sources/proj.tar.gz"
           if command -v cygpath >/dev/null 2>&1; then
             sources_dir=$(cygpath -u "$RUNNER_TEMP/sources")
             gdal_archive=$(cygpath -u "$RUNNER_TEMP/sources/gdal.tar.xz")
@@ -83,11 +83,11 @@ jobs:
         run: node scripts/verify-gdal-runtime.js runtime/${{ matrix.runtime }}
       - name: Verify macOS deployment
         if: runner.os == 'macOS'
-        run: node scripts/runtime/verify-macos-deployment.js runtime/${{ matrix.runtime }} 12.0
+        run: node scripts/verify-macos-deployment.js runtime/${{ matrix.runtime }} 12.0
       - name: Package runtime
         shell: bash
         run: |
-          node scripts/runtime/package-runtime.js runtime/${{ matrix.runtime }}
+          node scripts/package-runtime.js runtime/${{ matrix.runtime }}
           if [[ "${{ matrix.runtime }}" == "win32-x64" ]]; then
             powershell -Command "Compress-Archive -Path 'runtime\\win32-x64' -DestinationPath 'win32-x64-gdal-${GDAL_VERSION}-proj-${PROJ_VERSION}.zip'"
           else

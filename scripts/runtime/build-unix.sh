@@ -56,7 +56,7 @@ cmake --build "$work_root/proj-build" --config Release --parallel "$build_jobs"
 cmake --install "$work_root/proj-build" --config Release
 
 cmake -S "$GDAL_SOURCE_DIR" -B "$work_root/gdal-build" \
-  -C "$repo_root/scripts/runtime/common.cmake" \
+  -C "$repo_root/scripts/common.cmake" \
   -DCMAKE_BUILD_TYPE=Release \
   -DCMAKE_INSTALL_PREFIX="$runtime_dir" \
   -DCMAKE_PREFIX_PATH="$prefix_path" \

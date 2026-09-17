@@ -5,6 +5,6 @@
   "description": "Relocatable GDAL/PROJ runtimes for Tiles Download",
   "scripts": {
     "verify": "node scripts/verify-gdal-runtime.js",
-    "sha256": "node scripts/runtime/verify-sha256.js"
+    "sha256": "node scripts/verify-sha256.js"
   }
 }
