@@ -73,6 +73,18 @@ if [[ "$(uname -s)" == Darwin ]]; then
       exit 1
     fi
   done < <(collect_files)
+  # install_name_tool 重写依赖后会破坏第三方 dylib 的原始签名（例如 Homebrew
+  # 提供的 libzstd）。macOS 会直接以 SIGKILL 终止加载了签名失效 Mach-O 的进程，
+  # 表现为 gdal/gdal_translate 无输出且退出码为 null。因此重定位完成后必须统一
+  # 重新做 ad-hoc 签名；应用打包时 electron-builder 会用正式证书覆盖这些签名。
+  while IFS= read -r file; do
+    command file "$file" | grep -q 'Mach-O' || continue
+    original_mode=$(stat -f '%Lp' "$file")
+    chmod u+w "$file"
+    codesign --force --sign - --timestamp=none "$file"
+    chmod "$original_mode" "$file"
+    codesign --verify "$file"
+  done < <(collect_files)
 else
   command -v patchelf >/dev/null
   while true; do

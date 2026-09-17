@@ -28,6 +28,23 @@ function run(command, args) {
   return result.stdout;
 }
 
+if (process.platform === 'darwin') {
+  const machOFiles = [];
+  for (const directory of ['bin', 'lib']) {
+    const stack = [path.join(root, directory)].filter(directoryPath => fs.existsSync(directoryPath));
+    while (stack.length) {
+      const current = stack.pop();
+      for (const entry of fs.readdirSync(current, { withFileTypes: true })) {
+        const file = path.join(current, entry.name);
+        if (entry.isSymbolicLink()) continue;
+        if (entry.isDirectory()) stack.push(file);
+        else if (spawnSync('file', ['-b', file], { encoding: 'utf8' }).stdout?.includes('Mach-O')) machOFiles.push(file);
+      }
+    }
+  }
+  const broken = machOFiles.filter(file => spawnSync('codesign', ['--verify', file], { encoding: 'utf8' }).status !== 0);
+  if (broken.length) throw new Error(`macOS 代码签名无效的 Mach-O 文件: ${broken.map(file => path.relative(root, file)).join(', ')}。macOS 会以 SIGKILL 终止加载这些文件的进程，请在 collect-unix-libs.sh 中重新签名后再打包`);
+}
 const version = run(runtime.binaries.gdal, ['--version']).trim();
 const drivers = JSON.parse(run(runtime.binaries.gdal, ['raster', '--drivers']));
 const serializedDrivers = JSON.stringify(drivers);
