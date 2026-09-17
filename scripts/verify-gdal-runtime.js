@@ -1,10 +1,23 @@
 const fs = require('node:fs');
 const path = require('node:path');
 const { spawnSync } = require('node:child_process');
-const { locateRuntime, assertRuntime } = require('../src/raster/runtimeLocator.js');
 
 const runtimeArg = process.argv[2];
-const runtime = assertRuntime(locateRuntime(runtimeArg ? { env: { ...process.env, TILES_GDAL_RUNTIME: runtimeArg }, resourcesPath: '' } : {}));
+if (!runtimeArg) throw new Error('用法: node verify-gdal-runtime.js <runtime-directory>');
+const root = path.resolve(runtimeArg);
+const executable = process.platform === 'win32' ? '.exe' : '';
+const runtime = {
+  root,
+  binDir: path.join(root, 'bin'),
+  libDir: path.join(root, 'lib'),
+  gdalData: path.join(root, 'share', 'gdal'),
+  projLib: path.join(root, 'share', 'proj'),
+  binaries: { gdal: path.join(root, 'bin', `gdal${executable}`) }
+};
+for (const directory of [runtime.root, runtime.binDir, runtime.libDir, runtime.gdalData, runtime.projLib]) {
+  if (!fs.existsSync(directory)) throw new Error(`GDAL runtime 缺少目录: ${directory}`);
+}
+if (!fs.existsSync(runtime.binaries.gdal)) throw new Error(`GDAL runtime 缺少可执行文件: ${runtime.binaries.gdal}`);
 const env = { ...process.env, GDAL_DATA: runtime.gdalData, PROJ_LIB: runtime.projLib, PATH: `${runtime.binDir}${path.delimiter}${runtime.libDir}${path.delimiter}${process.env.PATH || ''}` };
 if (process.platform === 'linux') env.LD_LIBRARY_PATH = `${runtime.libDir}${path.delimiter}${process.env.LD_LIBRARY_PATH || ''}`;
 if (process.platform === 'darwin') env.DYLD_LIBRARY_PATH = `${runtime.libDir}${path.delimiter}${process.env.DYLD_LIBRARY_PATH || ''}`;
