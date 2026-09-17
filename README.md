@@ -9,7 +9,7 @@ GDAL/PROJ 源码、平台工具链、依赖重定位、许可证、校验和 Git
 - `darwin-arm64`：Apple Silicon，最低 macOS 12，使用 macOS 26 runner
 - `win32-x64`：Windows x64，使用 Windows 2025 runner
 
-启用的 GDAL 能力为 VRT、GTiff、PNG、PROJ 和 `gdal raster tile`。网络、
+启用的 GDAL 能力为 VRT、GTiff（含 ZSTD 压缩）、PNG、PROJ 和 `gdal raster tile`。网络、
 数据库、JPEG、WebP 以及未被客户端使用的 GDAL 工具均不打包。
 
 ## 构建
@@ -27,6 +27,8 @@ export RUNTIME_KEY=darwin-arm64
 export GDAL_SOURCE_DIR=/path/to/gdal-3.13.3
 export PROJ_SOURCE_DIR=/path/to/proj-9.8.1
 export MACOSX_DEPLOYMENT_TARGET=12.0
+# zstd is required by the macOS runtime build
+export DEPENDENCY_PREFIX=/opt/homebrew/opt/zstd
 scripts/runtime/build-unix.sh
 node scripts/verify-gdal-runtime.js runtime/darwin-arm64
 ```

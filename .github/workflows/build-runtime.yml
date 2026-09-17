@@ -39,7 +39,7 @@ jobs:
           node-version: 22
       - name: Install macOS tools
         if: runner.os == 'macOS'
-        run: brew install cmake ninja
+        run: brew install cmake ninja zstd
       - name: Install Windows toolchain
         if: runner.os == 'Windows'
         uses: conda-incubator/setup-miniconda@v3
@@ -75,6 +75,7 @@ jobs:
         if: runner.os == 'macOS'
         env:
           MACOSX_DEPLOYMENT_TARGET: '12.0'
+          DEPENDENCY_PREFIX: /opt/homebrew/opt/zstd
         run: scripts/runtime/build-unix.sh
       - name: Build Windows runtime
         if: runner.os == 'Windows'

@@ -23,7 +23,7 @@ if [[ "$(uname -s)" == Darwin ]]; then
   cmake_platform_args+=(
     "-DCMAKE_OSX_DEPLOYMENT_TARGET=$MACOSX_DEPLOYMENT_TARGET"
     '-DCMAKE_FIND_USE_SYSTEM_PACKAGE_REGISTRY=OFF'
-    '-DGDAL_USE_ZSTD=OFF'
+    '-DGDAL_USE_ZSTD=ON'
   )
 fi
 
