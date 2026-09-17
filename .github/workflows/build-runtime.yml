@@ -96,7 +96,11 @@ jobs:
       - name: Generate checksum
         shell: bash
         run: |
-          sha256sum *-gdal-*.tar.gz *-gdal-*.zip > "checksums-${{ matrix.runtime }}.txt"
+          if [[ "${{ matrix.runtime }}" == "win32-x64" ]]; then
+            sha256sum "win32-x64-gdal-${GDAL_VERSION}-proj-${PROJ_VERSION}.zip" > "checksums-${{ matrix.runtime }}.txt"
+          else
+            sha256sum "darwin-arm64-gdal-${GDAL_VERSION}-proj-${PROJ_VERSION}.tar.gz" > "checksums-${{ matrix.runtime }}.txt"
+          fi
           cp "runtime/${{ matrix.runtime }}/runtime-manifest.json" "runtime-manifest-${{ matrix.runtime }}.json"
       - name: Upload workflow artifacts
         uses: actions/upload-artifact@v4

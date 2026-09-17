@@ -1,4 +1,5 @@
 $ErrorActionPreference = 'Stop'
+$PSNativeCommandUseErrorActionPreference = $true
 if (-not $env:RUNTIME_KEY -or -not $env:GDAL_SOURCE_DIR -or -not $env:PROJ_SOURCE_DIR) { throw 'RUNTIME_KEY, GDAL_SOURCE_DIR and PROJ_SOURCE_DIR are required' }
 
 $RepoRoot = (Resolve-Path "$PSScriptRoot\..\..").Path
@@ -32,7 +33,7 @@ $GdalConfigureArgs = @(
   '-S', $env:GDAL_SOURCE_DIR,
   '-B', "$WorkRoot\gdal-build",
   '-A', 'x64',
-  '-C', "$RepoRoot\scripts\runtime\common.cmake",
+  '-C', "$RepoRoot\scripts\common.cmake",
   '-DCMAKE_BUILD_TYPE=Release',
   "-DCMAKE_INSTALL_PREFIX=$RuntimeDir",
   "-DCMAKE_PREFIX_PATH=$ProjPrefix;$env:CONDA_PREFIX",
