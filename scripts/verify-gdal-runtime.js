@@ -46,7 +46,7 @@ try {
   run(runtime.binaries.gdal, ['raster', 'create', '-o', input, '--output-format', 'GTiff', '--size', '32,32', '--band-count', '4', '--burn', '64', '--burn', '128', '--burn', '192', '--burn', '255', '--crs', 'EPSG:3857', '--bbox=-1000,-1000,1000,1000']);
   const zstdInput = path.join(probeRoot, 'probe-zstd.tif');
   run(runtime.binaries.gdal, ['raster', 'create', '-o', zstdInput, '--output-format', 'GTiff', '--creation-option', 'COMPRESS=ZSTD', '--size', '8,8', '--band-count', '1', '--burn', '1', '--crs', 'EPSG:3857', '--bbox=-1000,-1000,1000,1000']);
-  const zstdInfo = JSON.parse(run(runtime.binaries.gdal, ['info', 'raster', '--json', zstdInput]));
+  const zstdInfo = JSON.parse(run(runtime.binaries.gdal, ['info', '--output-format', 'json', zstdInput]));
   const compression = zstdInfo.metadata?.IMAGE_STRUCTURE?.COMPRESSION
     || zstdInfo.bands?.find((band) => band.metadata?.IMAGE_STRUCTURE?.COMPRESSION)?.metadata?.IMAGE_STRUCTURE?.COMPRESSION;
   if (compression !== 'ZSTD') throw new Error(`GDAL runtime 未启用 ZSTD 压缩（实际: ${compression || '未知'}）`);
